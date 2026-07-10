@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 
+import pytest
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
@@ -120,3 +121,9 @@ def test_custom_state_key():
 
     with TestClient(app):
         assert app.state.valley is system
+
+
+def test_legacy_event_kwargs_raise_type_error():
+    for event_kwarg in ("on_startup", "on_shutdown"):
+        with pytest.raises(TypeError, match=event_kwarg):
+            create_app(make_system(), **{event_kwarg: [lambda: None]})

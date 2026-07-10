@@ -35,13 +35,23 @@ def system_lifespan(
     Returns:
         A lifespan context manager suitable for ``FastAPI(lifespan=...)``.
 
+    A system in the STOPPED state is restarted, so each component's ``start()``
+    runs again; components must tolerate that if the app lifecycle can cycle.
+
+    Exception precedence follows python-components' ``System.__aexit__``: if the
+    app body (or ``wrap`` teardown) raises, that exception stays primary and a
+    shutdown ``ExceptionGroup`` is logged and attached via ``add_note`` rather
+    than masking it. When the body exits cleanly, a shutdown ``ExceptionGroup``
+    still propagates.
+
     Raises (when the application starts up or shuts down):
         RuntimeError: If the system is already started when the lifespan begins.
         ComponentStartError: If a component fails to start. Components that had
             already started are rolled back before the error propagates, and
             the server aborts startup.
-        ExceptionGroup: If one or more components fail to shut down. The
-            remaining components are still shut down first.
+        ExceptionGroup: If one or more components fail to shut down (and the app
+            body exited cleanly). The remaining components are still shut down
+            first.
     """
 
     @asynccontextmanager
@@ -69,7 +79,20 @@ def system_lifespan(
             else:
                 async with wrap(app) as state:
                     yield state
-        finally:
+        except BaseException as exc:
+            # The body (or wrap teardown) raised. That exception is primary;
+            # mirror python-components' System.__aexit__ convention: still shut
+            # the system down, but if shutdown itself fails, log and attach the
+            # failure as a note rather than masking the original exception.
+            try:
+                await system.ashutdown()
+            except ExceptionGroup as shutdown_exc:
+                logger.exception("Component system shutdown finished with failures")
+                exc.add_note(f"additionally, system shutdown failed: {shutdown_exc!r}")
+            raise
+        else:
+            # Clean exit from the body: a shutdown ExceptionGroup is the only
+            # error in flight, so it must propagate.
             try:
                 await system.ashutdown()
             except ExceptionGroup:

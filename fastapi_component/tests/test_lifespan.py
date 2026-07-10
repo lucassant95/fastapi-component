@@ -163,6 +163,53 @@ def test_shutdown_failure_propagates_as_exception_group():
     assert system.state is SystemState.STOPPED
 
 
+def test_wrap_teardown_failure_still_shuts_the_system_down():
+    recorder = Recorder()
+    system = System({"database": AsyncComponent("database", recorder)})
+
+    @asynccontextmanager
+    async def broken_teardown_lifespan(app: FastAPI):
+        yield
+        raise RuntimeError("app teardown failed")
+
+    app = FastAPI(lifespan=system_lifespan(system, wrap=broken_teardown_lifespan))
+    with pytest.raises(RuntimeError, match="app teardown failed"):
+        with TestClient(app):
+            pass
+
+    # The wrap teardown failure did not stop the system from shutting down.
+    assert recorder.of("shutdown") == ["database"]
+    assert system.state is SystemState.STOPPED
+
+
+def test_wrap_teardown_failure_takes_precedence_over_shutdown_failure():
+    recorder = Recorder()
+    system = System(
+        {
+            "database": AsyncComponent("database", recorder),
+            "broken": FailingShutdownComponent("broken", recorder).using(["database"]),
+        }
+    )
+
+    @asynccontextmanager
+    async def broken_teardown_lifespan(app: FastAPI):
+        yield
+        raise RuntimeError("app teardown failed")
+
+    app = FastAPI(lifespan=system_lifespan(system, wrap=broken_teardown_lifespan))
+    # The body's exception is primary; the shutdown ExceptionGroup is attached
+    # as a note rather than masking it.
+    with pytest.raises(RuntimeError, match="app teardown failed") as excinfo:
+        with TestClient(app):
+            pass
+
+    assert not isinstance(excinfo.value, ExceptionGroup)
+    assert any(
+        "system shutdown failed" in note
+        for note in getattr(excinfo.value, "__notes__", [])
+    )
+
+
 def test_custom_state_key():
     system = System({"database": AsyncComponent("database", Recorder())})
     app = FastAPI(lifespan=system_lifespan(system, state_key="components"))

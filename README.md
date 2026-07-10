@@ -60,7 +60,11 @@ app = FastAPI(lifespan=system_lifespan(system, wrap=app_lifespan))
 ### 2. Batteries: `create_app`
 
 A thin factory when you don't need to construct `FastAPI` yourself. Every
-native constructor argument passes through untouched:
+native constructor argument passes through untouched — the one exception being
+the legacy `on_startup`/`on_shutdown` event kwargs: because `create_app` always
+installs a lifespan (which makes FastAPI ignore them), passing either raises
+`TypeError` instead of silently dropping the handlers. Move that logic into
+`lifespan=` (composed inside the system's lifecycle):
 
 ```python
 from fastapi_component import create_app
@@ -110,9 +114,14 @@ Handlers can also reach the system directly via `request.app.state.system`.
   process.
 - **Shutdown failure:** a component failing to shut down does not prevent the
   others from shutting down; the failures are aggregated in an
-  `ExceptionGroup`, logged and re-raised so a non-clean exit is visible.
+  `ExceptionGroup`, logged and re-raised so a non-clean exit is visible. If the
+  app body (or `wrap` teardown) already raised, that exception stays primary and
+  the shutdown `ExceptionGroup` is logged and attached to it via `add_note`
+  rather than masking it (mirroring python-components' `System.__aexit__`).
 - **Double start:** the lifespan refuses (with `RuntimeError`) a system that
-  is already started — it must own the system's lifecycle.
+  is already started — it must own the system's lifecycle. A system left in the
+  STOPPED state is restarted, so each component's `start()` runs again;
+  components must tolerate that if the app lifecycle can cycle.
 
 ## Development
 
