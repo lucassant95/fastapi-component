@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `RouteProvider` — runtime-checkable protocol for components that contribute
+  an `APIRouter` via `def routes(self) -> APIRouter`.
+- `include_component_routes(app, system)` — includes the routers of every
+  provider in the system, depth-first in system-map insertion order, each
+  instance at most once.
+- `create_app` gains `component_routes: bool = True` and includes component
+  routes automatically, after explicit `routers=` and before `configure`.
+
 ## 0.1.0 (2026-07-09)
 
 Initial release.

@@ -9,7 +9,13 @@ from fastapi.testclient import TestClient
 from python_components import System
 
 from fastapi_component import create_app
-from fastapi_component.tests.helpers import AsyncComponent, Recorder, SyncComponent
+from fastapi_component.tests.helpers import (
+    AsyncComponent,
+    ProviderComponent,
+    Recorder,
+    SyncComponent,
+    registered_paths,
+)
 
 
 def make_system(recorder: Recorder | None = None) -> System:
@@ -121,6 +127,50 @@ def test_custom_state_key():
 
     with TestClient(app):
         assert app.state.valley is system
+
+
+def test_component_routes_included_automatically():
+    system = System({"users": ProviderComponent("users", Recorder())})
+
+    app = create_app(system)
+
+    with TestClient(app) as client:
+        assert client.get("/users").json() == {"component": "users"}
+
+
+def test_component_routes_opt_out():
+    system = System({"users": ProviderComponent("users", Recorder())})
+
+    app = create_app(system, component_routes=False)
+
+    with TestClient(app) as client:
+        assert client.get("/users").status_code == 404
+
+
+def test_explicit_routers_shadow_component_routes():
+    system = System({"users": ProviderComponent("users", Recorder())})
+    explicit = APIRouter()
+
+    @explicit.get("/users")
+    def users_override():
+        return {"component": "override"}
+
+    app = create_app(system, routers=[explicit])
+
+    with TestClient(app) as client:
+        assert client.get("/users").json() == {"component": "override"}
+
+
+def test_configure_sees_component_routes():
+    system = System({"users": ProviderComponent("users", Recorder())})
+    seen_paths = []
+
+    def configure(app: FastAPI) -> None:
+        seen_paths.extend(registered_paths(app))
+
+    create_app(system, configure=configure)
+
+    assert "/users" in seen_paths
 
 
 def test_legacy_event_kwargs_raise_type_error():

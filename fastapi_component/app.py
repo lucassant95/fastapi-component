@@ -7,12 +7,14 @@ from python_components import System
 from starlette.types import Lifespan
 
 from fastapi_component.lifespan import system_lifespan
+from fastapi_component.routing import include_component_routes
 
 
 def create_app(
     system: System,
     *,
     routers: Sequence[APIRouter] = (),
+    component_routes: bool = True,
     configure: Callable[[FastAPI], None] | None = None,
     lifespan: Lifespan[FastAPI] | None = None,
     state_key: str = "system",
@@ -30,9 +32,16 @@ def create_app(
 
     Args:
         system: The System the application lifespan should own.
-        routers: Routers to include on the application.
+        routers: Routers to include on the application. They are included
+            before component routes, so on a path collision an explicit router
+            wins (Starlette matches first-registered first).
+        component_routes: Include the routers of components implementing
+            ``RouteProvider`` (see ``include_component_routes``). Pass False to
+            skip discovery entirely.
         configure: Build-time hook called once with the application, for
-            middleware, instrumentation or any other native customization.
+            middleware, instrumentation or any other native customization. Runs
+            after all routers are included, so it observes the fully-routed
+            application.
         lifespan: An application lifespan composed inside the system's
             (see ``system_lifespan``'s ``wrap``).
         state_key: Attribute name under ``app.state`` where the system is
@@ -63,6 +72,8 @@ def create_app(
     )
     for router in routers:
         app.include_router(router)
+    if component_routes:
+        include_component_routes(app, system)
     if configure is not None:
         configure(app)
     return app

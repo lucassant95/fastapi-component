@@ -2,7 +2,24 @@
 
 import asyncio
 
+from fastapi import APIRouter, FastAPI
 from python_components import Component
+
+
+def registered_paths(app: FastAPI) -> list[str]:
+    """Route paths in registration order.
+
+    Since FastAPI 0.139 ``include_router`` appends a lazy wrapper holding the
+    original router instead of flattened routes; unwrap either shape.
+    """
+    paths: list[str] = []
+    for route in app.routes:
+        router = getattr(route, "original_router", None)
+        if router is not None:
+            paths.extend(inner.path for inner in router.routes)
+        else:
+            paths.append(route.path)
+    return paths
 
 
 class Recorder:
@@ -49,6 +66,19 @@ class AsyncComponent(Component):
 
     async def shutdown(self):
         self.recorder.record(self.name, "shutdown")
+
+
+class ProviderComponent(SyncComponent):
+    """Component implementing RouteProvider: serves ``GET /<name>``."""
+
+    def routes(self) -> APIRouter:
+        router = APIRouter()
+
+        @router.get(f"/{self.name}")
+        def read():
+            return {"component": self.name}
+
+        return router
 
 
 class FailingStartComponent(Component):

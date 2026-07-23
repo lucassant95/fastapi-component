@@ -81,9 +81,57 @@ app = create_app(
 ```
 
 `configure` is a build-time hook called once with the app — middleware,
-instrumentation (e.g. Prometheus), extra endpoints, anything.
+instrumentation (e.g. Prometheus), extra endpoints, anything. It runs after all
+routers (explicit and component-provided) are included. Component route
+discovery can be disabled with `component_routes=False`.
 
-### 3. Idiomatic DI in handlers
+### 3. Components that own their routes: `RouteProvider`
+
+A component can ship its endpoints alongside its lifecycle by implementing the
+`RouteProvider` protocol — a single method, `def routes(self) -> APIRouter`:
+
+```python
+from fastapi import APIRouter, Depends
+from python_components import Component
+from fastapi_component import component
+
+
+class UsersComponent(Component):
+    def routes(self) -> APIRouter:
+        router = APIRouter(prefix="/users", tags=["users"])
+
+        @router.get("")
+        async def list_users(db=Depends(component("database"))):
+            return await db.fetch_all("SELECT * FROM users")
+
+        return router
+
+    async def start(self): ...
+    async def shutdown(self): ...
+```
+
+`create_app` includes these routers automatically. With a self-built app, call
+`include_component_routes` after constructing it:
+
+```python
+from fastapi_component import include_component_routes, system_lifespan
+
+app = FastAPI(lifespan=system_lifespan(system))
+include_component_routes(app, system)
+```
+
+Discovery walks the system depth-first in `system_map` insertion order,
+recursing into nested `System`s, and includes each component instance at most
+once. Explicit `routers=` are included first, so on a path collision they win
+(Starlette matches first-registered first).
+
+One rule to remember: the app is built *before* the system starts, so
+`routes()` runs on un-started components — declare paths there, but never
+capture state produced by `start()`. Handlers run after startup; resolve live
+components with `Depends(component("name"))` as above. A prefix belongs on the
+router itself (`APIRouter(prefix=...)`).
+
+### 4. Idiomatic DI in handlers
 
 ```python
 from fastapi import Depends
