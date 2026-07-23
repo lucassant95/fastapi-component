@@ -81,6 +81,9 @@ def test_route_provider_is_runtime_checkable():
 
     assert isinstance(provider, RouteProvider)
     assert not isinstance(plain, RouteProvider)
+    # Documented divergence: isinstance only checks attribute presence, so a
+    # data attribute satisfies the protocol even though discovery skips it.
+    assert isinstance(DataRoutesComponent("data", Recorder()), RouteProvider)
 
 
 def test_includes_routes_from_providers():

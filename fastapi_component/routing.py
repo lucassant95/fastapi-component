@@ -31,9 +31,10 @@ def include_component_routes(app: FastAPI, system: System) -> None:
 
     The system is traversed depth-first in ``system_map`` insertion order,
     recursing into nested Systems; a node's own router is included before its
-    children's. The root system itself may be a provider. Each component
-    instance is included at most once, even if it is reachable under several
-    names.
+    children's. The root system itself may be a provider. Within one
+    invocation each component instance is included at most once, even if it is
+    reachable under several names; calling this twice registers routes twice,
+    like ``include_router`` itself.
 
     Args:
         app: The application to include routers on.

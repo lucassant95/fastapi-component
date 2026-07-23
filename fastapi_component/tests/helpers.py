@@ -10,13 +10,18 @@ def registered_paths(app: FastAPI) -> list[str]:
     """Route paths in registration order.
 
     Since FastAPI 0.139 ``include_router`` appends a lazy wrapper holding the
-    original router instead of flattened routes; unwrap either shape.
+    original router instead of flattened routes; unwrap either shape, at any
+    nesting depth.
     """
+    return _paths(app.routes)
+
+
+def _paths(routes) -> list[str]:
     paths: list[str] = []
-    for route in app.routes:
+    for route in routes:
         router = getattr(route, "original_router", None)
         if router is not None:
-            paths.extend(inner.path for inner in router.routes)
+            paths.extend(_paths(router.routes))
         else:
             paths.append(route.path)
     return paths
