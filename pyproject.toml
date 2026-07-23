@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fastapi-component"
-version = "0.1.0"
+version = "0.2.0"
 description = "FastAPI integration for python-components: run a component System inside the application lifespan"
 readme = "README.md"
 requires-python = ">=3.11"

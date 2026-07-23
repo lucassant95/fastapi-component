@@ -11,7 +11,7 @@ from fastapi_component.dependencies import component, get_system
 from fastapi_component.lifespan import system_lifespan
 from fastapi_component.routing import RouteProvider, include_component_routes
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "RouteProvider",

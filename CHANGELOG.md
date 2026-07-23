@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-07-23)
 
 - `RouteProvider` — runtime-checkable protocol for components that contribute
   an `APIRouter` via `def routes(self) -> APIRouter`.
