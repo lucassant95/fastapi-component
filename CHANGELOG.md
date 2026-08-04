@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-08-04)
 
 - `fastapi_component.auth` — JWT authentication plugin behind the new optional
   `auth` extra (`pip install 'fastapi-component[auth]'`; PyJWT + pwdlib/Argon2):
