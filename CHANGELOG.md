@@ -4,14 +4,16 @@
 
 - `fastapi_component.auth` — JWT authentication plugin behind the new optional
   `auth` extra (`pip install 'fastapi-component[auth]'`; PyJWT + pwdlib/Argon2):
-  - `JWTAuth` component: HS256 access tokens (`sub`/`role`/`scope` claims),
+  - `JWTAuth` component: HS256 access tokens (`sub`/`scope` claims),
     rotating sha256-hashed refresh tokens with reuse detection (a replayed
     rotated token revokes its whole session as compromised), and a
     `RouteProvider`-discovered `POST {prefix}/login|refresh|logout` router
     with an httpOnly refresh cookie. `issue_tokens()` is public so external
     identity providers can reuse the same issuance path.
   - `UserStore` / `RefreshTokenStore` protocols the application implements
-    for persistence; `AuthUser` protocol for the user shape.
+    for persistence; `AuthUser` protocol for the user shape. Scopes are
+    per-user data on `AuthUser` — the plugin has no role concept; scope
+    assignment policy is entirely application-side.
   - `require_scopes(*scopes)` dependency factory (401 + `WWW-Authenticate`
     vs 403 semantics), cached per argument tuple so consumer test suites can
     key `dependency_overrides` on a fresh call.

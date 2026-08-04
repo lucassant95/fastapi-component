@@ -35,7 +35,7 @@ class FakeUser:
     user_id: str
     email: str
     password_hash: str | None
-    role: str = "customer"
+    scopes: tuple[str, ...] = ("analytics:read",)
     is_active: bool = True
 
 

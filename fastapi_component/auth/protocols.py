@@ -6,6 +6,7 @@ identifiers cross this boundary as strings; consumers that store UUIDs
 convert at their own edge.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, runtime_checkable
@@ -18,12 +19,15 @@ class AuthUser(Protocol):
 
     ``password_hash`` is ``None`` for accounts that only authenticate through
     an external identity provider and therefore cannot use password login.
+    ``scopes`` is data the application assigns per user however it likes —
+    the plugin embeds it verbatim in the access token at issuance and imposes
+    no role or grouping concept of its own.
     """
 
     user_id: UUID | str
     email: str
     password_hash: str | None
-    role: str
+    scopes: Sequence[str]
     is_active: bool
 
 
