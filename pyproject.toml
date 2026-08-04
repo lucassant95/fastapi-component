@@ -60,3 +60,9 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["fastapi_component"]
 exclude = ["fastapi_component/tests"]
+
+[tool.ruff]
+# Markdown code blocks are hand-formatted for documentation readability;
+# newer ruff releases format them by default, and CI resolves ruff fresh
+# (no committed lockfile), so exclude them to keep CI version-drift-proof.
+extend-exclude = ["*.md"]
