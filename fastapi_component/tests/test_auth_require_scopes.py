@@ -127,3 +127,16 @@ def test_dependency_overrides_work_via_factory_identity():
 
     with TestClient(app) as client:
         assert client.get("/writes").status_code == 200
+
+
+def test_missing_credentials_is_401_even_before_the_lifespan_runs():
+    """Anonymous requests must not require the running system: the 401 for a
+    missing token fires before the auth component is resolved. Consumer test
+    suites that build the real app but never run the lifespan (no `with`
+    TestClient block) must see 401, not a RuntimeError-driven 500."""
+    client = TestClient(make_app())  # no `with` — app.state.system never set
+
+    response = client.get("/writes")
+
+    assert response.status_code == 401
+    assert response.headers["WWW-Authenticate"] == "Bearer"

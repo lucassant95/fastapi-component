@@ -8,7 +8,7 @@ at the next refresh, bounded by the access token's TTL.
 import functools
 from dataclasses import dataclass
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from fastapi_component.auth.tokens import InvalidAccessTokenError
@@ -46,8 +46,8 @@ def require_scopes(*required_scopes: str, auth_component: str = "auth"):
     """
 
     async def _guard(
+        request: Request,
         credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
-        auth=Depends(component(auth_component)),
     ) -> AuthenticatedUser:
         if credentials is None:
             raise HTTPException(
@@ -55,6 +55,10 @@ def require_scopes(*required_scopes: str, auth_component: str = "auth"):
                 detail="Not authenticated",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        # Resolved lazily, after the credentials check: anonymous requests
+        # must 401 without needing the running system (consumer test suites
+        # build the app without ever running the lifespan).
+        auth = component(auth_component)(request)
         try:
             claims = auth.decode(credentials.credentials)
         except InvalidAccessTokenError:
