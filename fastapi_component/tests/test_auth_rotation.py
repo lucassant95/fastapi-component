@@ -20,10 +20,6 @@ from fastapi_component.tests.helpers_auth import FakeTokenStore, FakeUser, FakeU
 SECRET = "unit-test-secret-0123456789abcdef-0123456789abcdef"
 PASSWORD = "correct horse battery staple"
 PASSWORD_HASH = hash_password(PASSWORD)
-SCOPES_BY_ROLE = {
-    "customer": ["analytics:read"],
-    "admin": ["analytics:read", "catalog:write", "extractions:manage", "users:manage"],
-}
 
 
 def make_user(**overrides) -> FakeUser:
@@ -35,7 +31,7 @@ def make_user(**overrides) -> FakeUser:
 
 
 def make_auth(users=None, config=None) -> JWTAuth:
-    auth = JWTAuth(scopes_by_role=SCOPES_BY_ROLE)
+    auth = JWTAuth()
     auth.user_store = FakeUserStore(users if users is not None else [make_user()])
     auth.token_store = FakeTokenStore()
     auth.config = (
@@ -54,15 +50,15 @@ def make_auth(users=None, config=None) -> JWTAuth:
 # ---------------------------------------------------------------- login
 
 
-def test_login_returns_access_token_with_role_and_scopes():
-    auth = make_auth()
+def test_login_embeds_the_users_own_scopes():
+    auth = make_auth(users=[make_user(scopes=("analytics:read", "catalog:write"))])
 
     pair = asyncio.run(auth.login("ada@example.com", PASSWORD))
 
     claims = auth.decode(pair.access_token)
     assert claims["sub"] == "user-1"
-    assert claims["role"] == "customer"
-    assert claims["scope"] == ["analytics:read"]
+    assert claims["scope"] == ["analytics:read", "catalog:write"]
+    assert "role" not in claims
     assert pair.expires_in == 15 * 60
 
 
@@ -192,7 +188,7 @@ def test_logout_with_unknown_secret_is_silent():
 
 
 def test_start_without_secret_fails():
-    auth = JWTAuth(scopes_by_role=SCOPES_BY_ROLE)
+    auth = JWTAuth()
     auth.user_store = FakeUserStore([])
     auth.token_store = FakeTokenStore()
     auth.config = SimpleNamespace()
@@ -202,7 +198,7 @@ def test_start_without_secret_fails():
 
 
 def test_start_with_short_secret_fails():
-    auth = JWTAuth(scopes_by_role=SCOPES_BY_ROLE)
+    auth = JWTAuth()
     auth.user_store = FakeUserStore([])
     auth.token_store = FakeTokenStore()
     auth.config = SimpleNamespace(JWT_SECRET_KEY="too-short")

@@ -168,18 +168,19 @@ system = System({
                                              # JWT_ACCESS_TOKEN_TTL_MINUTES (15),
                                              # JWT_REFRESH_TOKEN_TTL_DAYS (30)
     "auth_store": PostgresAuthStore().using(["database"]),   # implements both protocols
-    "auth": JWTAuth(
-        scopes_by_role={
-            "customer": ["analytics:read"],
-            "admin": ["analytics:read", "catalog:write", "users:manage"],
-        },
-    ).using({"user_store": "auth_store", "token_store": "auth_store", "config": "config"}),
+    "auth": JWTAuth().using(
+        {"user_store": "auth_store", "token_store": "auth_store", "config": "config"}
+    ),
 })
 app = create_app(system)   # RouteProvider discovery adds POST /auth/{login,refresh,logout}
 ```
 
-- **Login** returns a short-lived HS256 access token (`sub`, `role`, `scope`
-  claims) in JSON and a 30-day rotating refresh token in an httpOnly `Secure`
+- **Scopes are per-user data.** The `AuthUser` your store returns carries a
+  `scopes` sequence; the plugin embeds it verbatim in the token and imposes
+  no role or grouping concept — how scopes get assigned is entirely the
+  application's policy.
+- **Login** returns a short-lived HS256 access token (`sub`, `scope` claims)
+  in JSON and a 30-day rotating refresh token in an httpOnly `Secure`
   cookie scoped to the auth prefix. Refresh tokens are stored sha256-hashed;
   replaying an already-rotated token revokes its whole session as compromised.
 - **Guarding routes:** `dependencies=[Depends(require_scopes("catalog:write"))]`

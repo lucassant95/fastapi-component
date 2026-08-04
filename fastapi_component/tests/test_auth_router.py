@@ -17,7 +17,6 @@ from fastapi_component.tests.helpers_auth import (
 SECRET = "unit-test-secret-0123456789abcdef-0123456789abcdef"
 PASSWORD = "correct horse battery staple"
 PASSWORD_HASH = hash_password(PASSWORD)
-SCOPES_BY_ROLE = {"customer": ["analytics:read"]}
 
 
 def make_app(users=None):
@@ -31,9 +30,7 @@ def make_app(users=None):
             "config": StubConfig(JWT_SECRET_KEY=SECRET),
             "user_store": FakeUserStore(users),
             "token_store": FakeTokenStore(),
-            "auth": JWTAuth(scopes_by_role=SCOPES_BY_ROLE).using(
-                ["user_store", "token_store", "config"]
-            ),
+            "auth": JWTAuth().using(["user_store", "token_store", "config"]),
         }
     )
     return create_app(system)

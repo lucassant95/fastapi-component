@@ -21,17 +21,15 @@ class InvalidAccessTokenError(Exception):
 def create_access_token(
     *,
     subject: str,
-    role: str,
     scopes: Sequence[str],
     secret: str,
     ttl_minutes: int,
     now: datetime | None = None,
 ) -> str:
-    """Create a signed access token with ``sub``/``role``/``scope`` claims.
+    """Create a signed access token with ``sub``/``scope`` claims.
 
     Args:
         subject: Stable user identifier for the ``sub`` claim.
-        role: Role name embedded as the ``role`` claim.
         scopes: Scopes embedded as the ``scope`` list claim.
         secret: HS256 signing secret.
         ttl_minutes: Lifetime; ``exp`` is set this far after ``iat``.
@@ -40,7 +38,6 @@ def create_access_token(
     issued_at = now if now is not None else datetime.now(timezone.utc)
     claims = {
         "sub": subject,
-        "role": role,
         "scope": list(scopes),
         "iat": issued_at,
         "exp": issued_at + timedelta(minutes=ttl_minutes),

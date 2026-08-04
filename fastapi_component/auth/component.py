@@ -14,7 +14,6 @@ rotating refresh tokens.
 
 import hashlib
 import secrets
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -101,13 +100,11 @@ class JWTAuth(Component):
     def __init__(
         self,
         *,
-        scopes_by_role: Mapping[str, Sequence[str]],
         prefix: str = "/auth",
         cookie_secure: bool = True,
         cookie_samesite: str = "lax",
     ):
         super().__init__()
-        self.scopes_by_role = {role: list(s) for role, s in scopes_by_role.items()}
         self.prefix = prefix
         self.cookie_secure = cookie_secure
         self.cookie_samesite = cookie_samesite
@@ -167,8 +164,7 @@ class JWTAuth(Component):
         )
         access_token = create_access_token(
             subject=str(user.user_id),
-            role=user.role,
-            scopes=self.scopes_by_role.get(user.role, []),
+            scopes=list(user.scopes),
             secret=self._secret,
             ttl_minutes=self._access_ttl_minutes,
         )

@@ -22,7 +22,6 @@ class AuthenticatedUser:
     """Identity extracted from a validated access token."""
 
     user_id: str
-    role: str
     scopes: frozenset[str]
 
 
@@ -74,10 +73,6 @@ def require_scopes(*required_scopes: str, auth_component: str = "auth"):
                 status_code=403,
                 detail=f"Missing required scope(s): {', '.join(sorted(missing))}",
             )
-        return AuthenticatedUser(
-            user_id=claims["sub"],
-            role=claims.get("role", ""),
-            scopes=token_scopes,
-        )
+        return AuthenticatedUser(user_id=claims["sub"], scopes=token_scopes)
 
     return _guard

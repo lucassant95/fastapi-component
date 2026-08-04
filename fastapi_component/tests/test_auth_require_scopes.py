@@ -18,10 +18,6 @@ from fastapi_component.tests.helpers_auth import (
 SECRET = "unit-test-secret-0123456789abcdef-0123456789abcdef"
 PASSWORD = "correct horse battery staple"
 PASSWORD_HASH = hash_password(PASSWORD)
-SCOPES_BY_ROLE = {
-    "customer": ["analytics:read"],
-    "admin": ["analytics:read", "catalog:write"],
-}
 
 
 def make_app():
@@ -31,13 +27,16 @@ def make_app():
             "user_store": FakeUserStore(
                 [
                     FakeUser("user-1", "ada@example.com", PASSWORD_HASH),
-                    FakeUser("user-2", "root@example.com", PASSWORD_HASH, role="admin"),
+                    FakeUser(
+                        "user-2",
+                        "root@example.com",
+                        PASSWORD_HASH,
+                        scopes=("analytics:read", "catalog:write"),
+                    ),
                 ]
             ),
             "token_store": FakeTokenStore(),
-            "auth": JWTAuth(scopes_by_role=SCOPES_BY_ROLE).using(
-                ["user_store", "token_store", "config"]
-            ),
+            "auth": JWTAuth().using(["user_store", "token_store", "config"]),
         }
     )
     app = create_app(system)
@@ -48,7 +47,7 @@ def make_app():
 
     @app.get("/me")
     def me(user: AuthenticatedUser = Depends(require_scopes())):
-        return {"sub": user.user_id, "role": user.role, "scopes": sorted(user.scopes)}
+        return {"sub": user.user_id, "scopes": sorted(user.scopes)}
 
     return app
 
@@ -105,7 +104,6 @@ def test_route_level_capture_returns_identity():
 
         assert body == {
             "sub": "user-1",
-            "role": "customer",
             "scopes": ["analytics:read"],
         }
 
@@ -122,7 +120,7 @@ def test_dependency_overrides_work_via_factory_identity():
     called require_scopes(...) at import time."""
     app = make_app()
     app.dependency_overrides[require_scopes("catalog:write")] = lambda: (
-        AuthenticatedUser(user_id="fake", role="admin", scopes=frozenset())
+        AuthenticatedUser(user_id="fake", scopes=frozenset())
     )
 
     with TestClient(app) as client:
