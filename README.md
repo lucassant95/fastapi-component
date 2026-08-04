@@ -148,6 +148,52 @@ async def list_users(db=Depends(component("database"))):
 
 Handlers can also reach the system directly via `request.app.state.system`.
 
+### 5. JWT authentication plugin (`fastapi-component[auth]`)
+
+`fastapi_component.auth` ships a complete JWT auth flow as a component,
+behind the optional `auth` extra:
+
+```bash
+pip install 'fastapi-component[auth]'   # adds PyJWT + pwdlib[argon2]
+```
+
+The application implements two persistence protocols (`UserStore`,
+`RefreshTokenStore`) on components of its own, and wires the plugin in:
+
+```python
+from fastapi_component.auth import JWTAuth, require_scopes
+
+system = System({
+    "config": Config(),                      # exposes JWT_SECRET_KEY (required, ≥32 chars),
+                                             # JWT_ACCESS_TOKEN_TTL_MINUTES (15),
+                                             # JWT_REFRESH_TOKEN_TTL_DAYS (30)
+    "auth_store": PostgresAuthStore().using(["database"]),   # implements both protocols
+    "auth": JWTAuth(
+        scopes_by_role={
+            "customer": ["analytics:read"],
+            "admin": ["analytics:read", "catalog:write", "users:manage"],
+        },
+    ).using({"user_store": "auth_store", "token_store": "auth_store", "config": "config"}),
+})
+app = create_app(system)   # RouteProvider discovery adds POST /auth/{login,refresh,logout}
+```
+
+- **Login** returns a short-lived HS256 access token (`sub`, `role`, `scope`
+  claims) in JSON and a 30-day rotating refresh token in an httpOnly `Secure`
+  cookie scoped to the auth prefix. Refresh tokens are stored sha256-hashed;
+  replaying an already-rotated token revokes its whole session as compromised.
+- **Guarding routes:** `dependencies=[Depends(require_scopes("catalog:write"))]`
+  at router level, or `user: AuthenticatedUser = Depends(require_scopes())` to
+  capture identity. Missing/invalid token → 401 with a `WWW-Authenticate:
+  Bearer` challenge; insufficient scope → 403. Verification is stateless — no
+  store access per request.
+- **Testing consumers:** `require_scopes(...)` is cached per argument tuple,
+  so `app.dependency_overrides[require_scopes("catalog:write")] = fake` in a
+  test suite targets the very callable baked into the router.
+- **External IdPs later:** `JWTAuth.issue_tokens(user)` is public — a future
+  e.g. Google login route verifies the provider credential, resolves the user,
+  and mints tokens through the exact path password login uses.
+
 ## Failure semantics
 
 - **Startup failure (fail-fast):** if a component's `start()` raises, the

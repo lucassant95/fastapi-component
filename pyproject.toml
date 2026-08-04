@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fastapi-component"
-version = "0.2.0"
+version = "0.3.0"
 description = "FastAPI integration for python-components: run a component System inside the application lifespan"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -42,9 +42,17 @@ Repository = "https://github.com/lucassant95/fastapi-component"
 Issues = "https://github.com/lucassant95/fastapi-component/issues"
 Changelog = "https://github.com/lucassant95/fastapi-component/releases"
 
+[project.optional-dependencies]
+auth = [
+    "pwdlib[argon2]>=0.2",
+    "pyjwt>=2.8",
+]
+
 [dependency-groups]
 dev = [
     "httpx>=0.27",
+    "pwdlib[argon2]>=0.3.0",
+    "pyjwt>=2.13.0",
     "pytest>=8.4.2",
     "ruff>=0.14.2",
 ]
