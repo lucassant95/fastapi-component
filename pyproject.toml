@@ -54,7 +54,10 @@ dev = [
     "pwdlib[argon2]>=0.3.0",
     "pyjwt>=2.13.0",
     "pytest>=8.4.2",
-    "ruff>=0.14.2",
+    # Upper-bounded: CI resolves fresh (no committed lockfile) and ruff minor
+    # releases change default rule/format behavior, breaking style checks on
+    # untouched code. Bump deliberately, together with any new findings.
+    "ruff>=0.14.2,<0.16",
 ]
 
 [tool.hatch.build.targets.wheel]
